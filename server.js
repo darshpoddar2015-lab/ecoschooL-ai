@@ -282,5 +282,25 @@ if (fs.existsSync(distPath)) {
     res.sendFile(join(distPath, "index.html"));
   });
 }
+app.get("/privacy", (req, res) => {
+  res.send(`<!DOCTYPE html><html><head><title>Privacy Policy - EcoSchool AI</title></head><body style="font-family:Arial;max-width:800px;margin:40px auto;padding:20px">
+<h1>Privacy Policy - EcoSchool AI</h1>
+<p>Last updated: September 2026</p>
+<p>EcoSchool AI ("the App") is developed by DP Studios. This privacy policy explains how we handle your data.</p>
+<h2>Information We Collect</h2>
+<p>The App may collect: device information, usage data, and content you submit (waste items, chat messages).</p>
+<h2>How We Use Information</h2>
+<p>We use collected information to provide waste classification, recycling information, and app features.</p>
+<h2>Data Storage</h2>
+<p>User data such as points and history are stored locally on your device. Chat messages are stored on our server.</p>
+<h2>Third-Party Services</h2>
+<p>We use Groq AI API for waste classification. Their privacy policy applies to data processed by their service.</p>
+<h2>Children's Privacy</h2>
+<p>EcoSchool AI is designed for students. We do not knowingly collect personal information from children under 13.</p>
+<h2>Contact Us</h2>
+<p>If you have questions about this privacy policy, contact us at: darshpoddar2015@gmail.com</p>
+</body></html>`);
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
