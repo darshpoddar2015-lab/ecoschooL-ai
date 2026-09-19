@@ -17,7 +17,7 @@ app.post("/api/classify-waste", async (req, res) => {
 
   try {
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       messages: [
         {
           role: "user",
@@ -144,7 +144,7 @@ app.post("/api/find-recyclers", async (req, res) => {
   if (!item) return res.status(400).json({ error: "No item provided" });
   try {
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       messages: [{
         role: "user",
         content: `You are a recycling expert helping students in India find companies that recycle specific items.
@@ -174,7 +174,7 @@ app.post("/api/classify-flower", async (req, res) => {
   if (!item) return res.status(400).json({ error: "No item provided" });
   try {
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       messages: [{
         role: "user",
         content: `You are an expert in flower recycling and upcycling for a school project in India.
