@@ -124,8 +124,6 @@ app.get("/api/news", async (_req, res) => {
   if (newsCache && newsCache.length > 0 && Date.now() - newsCacheTime < 3600000) return res.json(newsCache);
   const feeds = [
     { url: "https://news.mongabay.com/feed/", label: "Mongabay" },
-    { url: "https://feeds.feedburner.com/treehugger/main", label: "Treehugger" },
-    { url: "https://climate.nasa.gov/news/rss.xml", label: "NASA Climate" },
     { url: "https://www.theguardian.com/environment/rss", label: "The Guardian" },
     { url: "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", label: "BBC Environment" },
   ];
