@@ -54,39 +54,6 @@ const RANK_MAP = {
   "eco god": "👑 Eco God", ecogod: "👑 Eco God",
 };
 
-const FAKE_NAMES = [
-  "EcoBot_Arjun", "GreenGuard_Priya", "RecycleKing_Dev", "EarthSaver_Ananya",
-  "WasteWatcher_Raj", "GreenMachine_Sia", "EcoWarrior_Kiran", "CleanEarth_Maya",
-  "RecycleRover_Aman", "GreenGhost_Nisha", "EcoNinja_Rohan", "WasteHero_Tara",
-  "PlanetSaver_Varun", "EcoStar_Meera", "GreenBot_Aditya",
-];
-
-const WASTE_POOL = [
-  { item: "banana peel",    category: "Wet Waste",        emoji: "🌿", points: 15 },
-  { item: "plastic bottle", category: "Recyclable Waste", emoji: "♻️", points: 10 },
-  { item: "newspaper",      category: "Dry Waste",        emoji: "📦", points: 8 },
-  { item: "old phone",      category: "E-Waste",          emoji: "🔋", points: 20 },
-  { item: "paint can",      category: "Hazardous Waste",  emoji: "⚠️", points: 25 },
-  { item: "glass jar",      category: "Recyclable Waste", emoji: "♻️", points: 10 },
-  { item: "cardboard box",  category: "Dry Waste",        emoji: "📦", points: 8 },
-];
-
-const seedFakeAccounts = () => {
-  if (localStorage.getItem("eco_fake_seeded")) return;
-  const existing = JSON.parse(localStorage.getItem("eco_all_users") || "[]");
-  FAKE_NAMES.forEach((name) => {
-    const pts = Math.floor(Math.random() * 4800) + 300;
-    localStorage.setItem(`eco_points_${name}`, pts);
-    const count = Math.min(Math.floor(pts / 10), 30);
-    const hist = Array.from({ length: count }, (_, i) => ({ ...WASTE_POOL[i % WASTE_POOL.length], time: "12:00 PM" }));
-    localStorage.setItem(`eco_history_${name}`, JSON.stringify(hist));
-  });
-  localStorage.setItem("eco_all_users", JSON.stringify([...new Set([...existing, ...FAKE_NAMES])]));
-  localStorage.setItem("eco_fake_users", JSON.stringify(FAKE_NAMES));
-  localStorage.setItem("eco_fake_seeded", "1");
-};
-
-seedFakeAccounts();
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(!!localStorage.getItem("eco_user"));
@@ -135,6 +102,7 @@ export default function App() {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   const [openFaq, setOpenFaq] = useState(null);
+  const [serverScores, setServerScores] = useState({});
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => {
@@ -156,6 +124,17 @@ export default function App() {
     const i = setInterval(() => fetch(`${API}/api/banned`).then((r) => r.json()).then(setBanned).catch(() => {}), 5000);
     return () => clearInterval(i);
   }, [loggedIn]);
+  useEffect(() => {
+    if (!loggedIn) return;
+    const fetchScores = async () => { try { const r = await fetch(`${API}/api/scores`); setServerScores(await r.json()); } catch {} };
+    fetchScores();
+    const i = setInterval(fetchScores, 10000);
+    return () => clearInterval(i);
+  }, [loggedIn]);
+  useEffect(() => {
+    if (!loggedIn || !username) return;
+    fetch(`${API}/api/scores`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: username, points, scanned: history.length }) }).catch(() => {});
+  }, [points, history.length, loggedIn]);
   useEffect(() => { localStorage.setItem("eco_roles", JSON.stringify(roles)); }, [roles]);
   useEffect(() => { localStorage.setItem("eco_rank_overrides", JSON.stringify(rankOverrides)); }, [rankOverrides]);
   useEffect(() => { localStorage.setItem("eco_feedbacks", JSON.stringify(allFeedbacks)); }, [allFeedbacks]);
@@ -416,22 +395,18 @@ export default function App() {
   const levelName = rankOverrides[username] || getLevel(points);
 
   const getLeaderboard = () => {
-    const users = JSON.parse(localStorage.getItem("eco_all_users") || "[]");
     const overrides = JSON.parse(localStorage.getItem("eco_rank_overrides") || "{}");
     const rolesData = JSON.parse(localStorage.getItem("eco_roles") || "{}");
-    const fakeUsers = JSON.parse(localStorage.getItem("eco_fake_users") || "[]");
-    return users
-      .map((u) => {
-        const pts = Number(localStorage.getItem(`eco_points_${u}`) || 0);
-        return {
-          name: u, pts,
-          scanned: JSON.parse(localStorage.getItem(`eco_history_${u}`) || "[]").length,
-          isAdmin: admins.includes(u),
-          isFake: fakeUsers.includes(u),
-          role: rolesData[u] || null,
-          level: overrides[u] || getLevel(pts),
-        };
-      })
+    return Object.entries(serverScores)
+      .map(([name, data]) => ({
+        name,
+        pts: data.points || 0,
+        scanned: data.scanned || 0,
+        isAdmin: admins.includes(name),
+        isFake: false,
+        role: rolesData[name] || null,
+        level: overrides[name] || getLevel(data.points || 0),
+      }))
       .sort((a, b) => b.pts - a.pts);
   };
 
@@ -845,7 +820,7 @@ export default function App() {
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                           <span style={{ fontWeight: 700, fontSize: 14, color: C.dark }}>{u.name}{isMe && " (You)"}</span>
                           {u.isAdmin && <span style={{ fontSize: 10, background: "#e65100", color: "white", borderRadius: 6, padding: "1px 6px", fontWeight: 700 }}>👑 Admin</span>}
-                          {u.isFake && <span style={{ fontSize: 10, background: "#e0e0e0", color: C.gray, borderRadius: 6, padding: "1px 6px" }}>🤖 Bot</span>}
+
                           {u.role && <span style={{ fontSize: 10, background: "#6a1b9a", color: "white", borderRadius: 6, padding: "1px 6px", fontWeight: 700 }}>{u.role}</span>}
                         </div>
                         <div style={{ fontSize: 11, color: C.gray, marginTop: 2 }}>{u.scanned} items · {u.level}</div>

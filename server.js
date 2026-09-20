@@ -3,6 +3,7 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import Groq from "groq-sdk";
+import fs from "fs";
 
 const app = express();
 app.use(cors());
@@ -88,6 +89,21 @@ Category must be one of: Wet Waste, E-Waste, Recyclable Waste, Dry Waste, Hazard
     res.status(500).json({ error: "Image classification failed" });
   }
 });
+// Scores (server-side leaderboard)
+const SCORES_FILE = "scores.json";
+const readScores = () => { try { return JSON.parse(fs.readFileSync(SCORES_FILE, "utf8")); } catch { return {}; } };
+const writeScores = (data) => fs.writeFileSync(SCORES_FILE, JSON.stringify(data));
+
+app.get("/api/scores", (_req, res) => res.json(readScores()));
+app.post("/api/scores", (req, res) => {
+  const { user, points, scanned } = req.body;
+  if (!user) return res.status(400).json({ error: "No user" });
+  const scores = readScores();
+  scores[user] = { points: Number(points) || 0, scanned: Number(scanned) || 0, updated: Date.now() };
+  writeScores(scores);
+  res.json({ ok: true });
+});
+
 // Chat (server-side, shared across all devices)
 const CHAT_FILE = "chat.json";
 const BANNED_FILE = "banned.json";
@@ -271,7 +287,6 @@ app.post("/api/send-feedback", async (req, res) => {
 
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import fs from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distPath = join(__dirname, "dist");
