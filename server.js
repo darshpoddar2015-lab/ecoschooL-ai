@@ -114,32 +114,42 @@ app.delete("/api/scores", (req, res) => {
 });
 
 // News feed (cached 1 hour)
-const rssParser = new Parser({ timeout: 8000 });
+const rssParser = new Parser({
+  timeout: 12000,
+  headers: { "User-Agent": "Mozilla/5.0 (compatible; EcoSchoolBot/1.0)" },
+  customFields: { item: ["media:thumbnail", "enclosure"] },
+});
 let newsCache = null; let newsCacheTime = 0;
 app.get("/api/news", async (_req, res) => {
-  if (newsCache && Date.now() - newsCacheTime < 3600000) return res.json(newsCache);
+  if (newsCache && newsCache.length > 0 && Date.now() - newsCacheTime < 3600000) return res.json(newsCache);
   const feeds = [
-    "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
-    "https://www.theguardian.com/environment/rss",
-    "https://rss.nytimes.com/services/xml/rss/nyt/Climate.xml",
+    { url: "https://news.mongabay.com/feed/", label: "Mongabay" },
+    { url: "https://feeds.feedburner.com/treehugger/main", label: "Treehugger" },
+    { url: "https://climate.nasa.gov/news/rss.xml", label: "NASA Climate" },
+    { url: "https://www.theguardian.com/environment/rss", label: "The Guardian" },
+    { url: "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", label: "BBC Environment" },
   ];
   const items = [];
-  for (const url of feeds) {
+  for (const { url, label } of feeds) {
     try {
       const feed = await rssParser.parseURL(url);
-      feed.items.slice(0, 5).forEach((it) => items.push({
-        title: it.title,
-        link: it.link,
-        source: feed.title,
-        date: it.pubDate || it.isoDate || "",
-        summary: (it.contentSnippet || it.summary || "").slice(0, 140),
-      }));
-    } catch {}
+      const src = feed.title || label;
+      feed.items.slice(0, 4).forEach((it) => {
+        if (!it.title) return;
+        items.push({
+          title: it.title.trim(),
+          link: it.link || it.guid || "",
+          source: src,
+          date: it.pubDate || it.isoDate || "",
+          summary: (it.contentSnippet || it.summary || "").replace(/<[^>]*>/g,"").slice(0, 140),
+        });
+      });
+    } catch (e) { console.log(`News feed failed (${label}):`, e.message); }
   }
   items.sort((a, b) => new Date(b.date) - new Date(a.date));
-  newsCache = items.slice(0, 15);
-  newsCacheTime = Date.now();
-  res.json(newsCache);
+  const result = items.slice(0, 15);
+  if (result.length > 0) { newsCache = result; newsCacheTime = Date.now(); }
+  res.json(result);
 });
 
 // Chat (server-side, shared across all devices)
