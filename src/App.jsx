@@ -409,23 +409,36 @@ export default function App() {
     finally { setRecyclerLoading(false); }
   };
 
-  const analyzeImage = (file) => {
-    setLoading(true); setResult(null); setRecyclerResult(null); setScanMode("waste");
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target.result; setPreview(base64);
-      try {
-        const res = await fetch(`${API}/api/classify-image`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64 }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        handleResult(data, data.item);
-      } catch { setResult({ category: "Error", emoji: "❓", tip: "Could not classify image", points: 0 }); }
-      finally { setLoading(false); }
+  const resizeImage = (file) => new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 800;
+      let { width: w, height: h } = img;
+      if (w > MAX || h > MAX) { const s = MAX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
     };
-    reader.readAsDataURL(file);
+    img.src = url;
+  });
+
+  const analyzeImage = async (file) => {
+    setLoading(true); setResult(null); setRecyclerResult(null); setScanMode("waste");
+    try {
+      const base64 = await resizeImage(file);
+      setPreview(base64);
+      const res = await fetch(`${API}/api/classify-image`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64 }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      handleResult(data, data.item);
+    } catch { setResult({ category: "Error", emoji: "❓", tip: "Could not classify image", points: 0 }); }
+    finally { setLoading(false); }
   };
 
   const levelName = rankOverrides[username] || getLevel(points);
