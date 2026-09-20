@@ -4,6 +4,7 @@ import express from "express";
 import cors from "cors";
 import Groq from "groq-sdk";
 import fs from "fs";
+import Parser from "rss-parser";
 
 const app = express();
 app.use(cors());
@@ -110,6 +111,35 @@ app.delete("/api/scores", (req, res) => {
   if (keep && scores[keep]) fresh[keep] = scores[keep];
   writeScores(fresh);
   res.json({ ok: true });
+});
+
+// News feed (cached 1 hour)
+const rssParser = new Parser({ timeout: 8000 });
+let newsCache = null; let newsCacheTime = 0;
+app.get("/api/news", async (_req, res) => {
+  if (newsCache && Date.now() - newsCacheTime < 3600000) return res.json(newsCache);
+  const feeds = [
+    "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    "https://www.theguardian.com/environment/rss",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Climate.xml",
+  ];
+  const items = [];
+  for (const url of feeds) {
+    try {
+      const feed = await rssParser.parseURL(url);
+      feed.items.slice(0, 5).forEach((it) => items.push({
+        title: it.title,
+        link: it.link,
+        source: feed.title,
+        date: it.pubDate || it.isoDate || "",
+        summary: (it.contentSnippet || it.summary || "").slice(0, 140),
+      }));
+    } catch {}
+  }
+  items.sort((a, b) => new Date(b.date) - new Date(a.date));
+  newsCache = items.slice(0, 15);
+  newsCacheTime = Date.now();
+  res.json(newsCache);
 });
 
 // Chat (server-side, shared across all devices)

@@ -107,6 +107,8 @@ export default function App() {
 
   const [openFaq, setOpenFaq] = useState(null);
   const [serverScores, setServerScores] = useState({});
+  const [news, setNews] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(false);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => {
@@ -139,6 +141,11 @@ export default function App() {
     if (!loggedIn || !username) return;
     fetch(`${API}/api/scores`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: username, points, scanned: history.length }) }).catch(() => {});
   }, [points, history.length, loggedIn]);
+  useEffect(() => {
+    if (!loggedIn) return;
+    setNewsLoading(true);
+    fetch(`${API}/api/news`).then((r) => r.json()).then((d) => { setNews(Array.isArray(d) ? d : []); setNewsLoading(false); }).catch(() => setNewsLoading(false));
+  }, [loggedIn]);
   useEffect(() => { localStorage.setItem("eco_roles", JSON.stringify(roles)); }, [roles]);
   useEffect(() => { localStorage.setItem("eco_rank_overrides", JSON.stringify(rankOverrides)); }, [rankOverrides]);
   useEffect(() => { localStorage.setItem("eco_feedbacks", JSON.stringify(allFeedbacks)); }, [allFeedbacks]);
@@ -531,6 +538,46 @@ export default function App() {
 
   return (
     <div style={{ background: C.bg, minHeight: "100dvh", width: "100%", fontFamily: "'Segoe UI', sans-serif", paddingBottom: 80 }}>
+      <style>{`
+        @keyframes fadeInUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
+        @keyframes pop      { 0%{transform:scale(0.85);opacity:0} 70%{transform:scale(1.04)} 100%{transform:scale(1);opacity:1} }
+        @keyframes slideInLeft { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:0.7} }
+        @keyframes spin     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes shimmer  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        .eco-card { animation: fadeInUp 0.35s ease both; }
+        .eco-card:nth-child(1){animation-delay:0s}
+        .eco-card:nth-child(2){animation-delay:.05s}
+        .eco-card:nth-child(3){animation-delay:.1s}
+        .eco-card:nth-child(4){animation-delay:.15s}
+        .eco-card:nth-child(5){animation-delay:.2s}
+        .eco-card:nth-child(6){animation-delay:.25s}
+        .eco-pop { animation: pop 0.4s cubic-bezier(.17,.67,.35,1.2) both; }
+        .eco-fadein { animation: fadeIn 0.4s ease both; }
+        .eco-slide { animation: slideInLeft 0.3s ease both; }
+        .eco-tab-btn { transition: transform 0.15s ease, background 0.2s; }
+        .eco-tab-btn:active { transform: scale(0.88); }
+        .eco-btn { transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.15s; }
+        .eco-btn:hover { filter: brightness(1.06); }
+        .eco-btn:active { transform: scale(0.96); }
+        .eco-quick-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .eco-quick-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.1); }
+        .eco-quick-card:active { transform: scale(0.96); }
+        .eco-news-card { transition: transform 0.15s ease; animation: fadeInUp 0.3s ease both; }
+        .eco-news-card:active { transform: scale(0.97); }
+        .eco-shimmer { background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation: shimmer 1.4s infinite; border-radius:10px; }
+        .eco-header { animation: fadeIn 0.5s ease; }
+        .eco-result { animation: pop 0.45s cubic-bezier(.17,.67,.35,1.2) both; }
+        .eco-lb-row { animation: slideInLeft 0.3s ease both; }
+        .eco-lb-row:nth-child(1){animation-delay:0s}
+        .eco-lb-row:nth-child(2){animation-delay:.04s}
+        .eco-lb-row:nth-child(3){animation-delay:.08s}
+        .eco-lb-row:nth-child(4){animation-delay:.12s}
+        .eco-lb-row:nth-child(5){animation-delay:.16s}
+        .eco-lb-row:nth-child(n+6){animation-delay:.2s}
+        .eco-msg { animation: fadeInUp 0.25s ease both; }
+      `}</style>
 
       {/* SPECTATOR MODAL */}
       {spectatorTarget && (
@@ -576,7 +623,7 @@ export default function App() {
       )}
 
       {/* HEADER */}
-      <div style={{ background: `linear-gradient(135deg, ${C.darkGreen}, ${C.green})`, padding: "16px 16px 24px", color: "white" }}>
+      <div className="eco-header" style={{ background: `linear-gradient(135deg, ${C.darkGreen}, ${C.green})`, padding: "16px 16px 24px", color: "white" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>Welcome back, <strong>{username}</strong> {isAdmin ? "👑" : "👋"}</p>
@@ -599,7 +646,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ padding: "16px 12px" }}>
+      <div key={tab} style={{ padding: "16px 12px", animation: "fadeInUp 0.3s ease" }}>
 
         {/* HOME */}
         {tab === "home" && (
@@ -614,7 +661,7 @@ export default function App() {
                 { icon: "⭐", label: "Give Feedback",    color: "#fff3e0", border: "#ffcc80", action: () => setTab("feedback") },
                 { icon: "❓", label: "Help & Support",   color: "#ede7f6", border: "#ce93d8", action: () => setTab("support") },
               ].map((item) => (
-                <div key={item.label} onClick={item.action}
+                <div key={item.label} onClick={item.action} className="eco-card eco-quick-card"
                   style={{ background: item.color, borderRadius: 14, padding: "16px 10px", textAlign: "center", cursor: "pointer", border: `1.5px solid ${item.border}` }}>
                   <div style={{ fontSize: 28, marginBottom: 6 }}>{item.icon}</div>
                   <div style={{ fontWeight: 700, color: C.dark, fontSize: 13 }}>{item.label}</div>
@@ -635,6 +682,26 @@ export default function App() {
                 {notifEnabled ? "ON ✅" : "Enable"}
               </button>
             </div>
+            {/* ECO NEWS */}
+            <h3 style={{ color: C.dark, marginTop: 16, marginBottom: 8, fontSize: 15 }}>🌍 Eco News</h3>
+            {newsLoading ? (
+              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6 }}>
+                {[1,2,3].map((k) => <div key={k} className="eco-shimmer" style={{ minWidth: 220, height: 90 }} />)}
+              </div>
+            ) : news.length === 0 ? (
+              <p style={{ color: C.gray, fontSize: 13 }}>No news available right now.</p>
+            ) : (
+              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
+                {news.map((n, i) => (
+                  <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="eco-news-card"
+                    style={{ minWidth: 220, maxWidth: 240, background: C.white, borderRadius: 14, padding: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.07)", textDecoration: "none", display: "block", animationDelay: `${i * 0.06}s`, border: "1.5px solid #e8f5e9", flexShrink: 0 }}>
+                    <div style={{ fontSize: 10, color: C.darkGreen, fontWeight: 700, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{n.source}</div>
+                    <div style={{ fontWeight: 700, color: C.dark, fontSize: 13, lineHeight: 1.4, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.title}</div>
+                    <div style={{ fontSize: 11, color: C.gray }}>{n.date ? new Date(n.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""}</div>
+                  </a>
+                ))}
+              </div>
+            )}
             <h3 style={{ color: C.dark, marginTop: 16, marginBottom: 8, fontSize: 15 }}>🏅 All Ranks</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {RANKS.map((r) => (
@@ -680,7 +747,7 @@ export default function App() {
             </div>
 
             {result && result.category !== "Error" && scanMode === "waste" && (
-              <div style={{ background: categoryColors[result.category] || C.green, borderRadius: 16, padding: 20, marginTop: 14, color: "white", boxShadow: "0 6px 20px rgba(0,0,0,0.18)" }}>
+              <div className="eco-result" style={{ background: categoryColors[result.category] || C.green, borderRadius: 16, padding: 20, marginTop: 14, color: "white", boxShadow: "0 6px 20px rgba(0,0,0,0.18)" }}>
                 <div style={{ fontSize: 52, textAlign: "center", marginBottom: 6 }}>{result.emoji}</div>
                 <h2 style={{ margin: "0 0 4px", textAlign: "center", fontSize: 22 }}>{result.category}</h2>
                 {result.item && <p style={{ textAlign: "center", margin: "0 0 8px", opacity: 0.9, fontSize: 13 }}>Identified: <strong>{result.item}</strong></p>}
@@ -787,7 +854,7 @@ export default function App() {
                 </div>
               )}
               {messages.map((m) => (
-                <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: m.system ? "center" : m.user === username ? "flex-end" : "flex-start" }}>
+                <div key={m.id} className="eco-msg" style={{ display: "flex", flexDirection: "column", alignItems: m.system ? "center" : m.user === username ? "flex-end" : "flex-start" }}>
                   {m.system ? (
                     <div style={{ background: "#f5f5f5", borderRadius: 10, padding: "6px 12px", fontSize: 12, color: C.gray, maxWidth: "90%", textAlign: "center" }}>{m.text}</div>
                   ) : (
@@ -840,7 +907,7 @@ export default function App() {
                   const isTop3 = i < 3;
                   const canSpectate = isAdmin && !u.isFake && !u.isAdmin;
                   return (
-                    <div key={u.name} onClick={() => canSpectate && enterSpectator(u.name)}
+                    <div key={u.name} className="eco-lb-row" onClick={() => canSpectate && enterSpectator(u.name)}
                       style={{ background: isMe ? "#e8f5e9" : C.white, borderRadius: 14, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, border: isMe ? `2px solid ${C.green}` : "2px solid transparent", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", cursor: canSpectate ? "pointer" : "default" }}>
                       <div style={{ width: 36, textAlign: "center", fontSize: isTop3 ? 24 : 16, fontWeight: 800, color: isTop3 ? undefined : C.gray }}>
                         {isTop3 ? medals[i] : `#${i + 1}`}
@@ -1020,7 +1087,7 @@ export default function App() {
               feedback:    { id: "feedback",    icon: "⭐", label: "Feedback" },
               support:     { id: "support",     icon: "❓", label: "Help" },
             }[id])).map((t) => (
-            <button key={t.id}
+            <button key={t.id} className="eco-tab-btn"
               onClick={() => { setTab(t.id); if (t.id === "dms") setDmRead(dms.length); }}
               style={{ flex: "0 0 12.5%", minWidth: 56, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "4px 0", position: "relative" }}>
               <span style={{ fontSize: 20 }}>{t.icon}</span>
