@@ -67,6 +67,10 @@ export default function App() {
   const API = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`;
 
   const [tab, setTab] = useState("home");
+  const DEFAULT_TABS = ["home","scan","history","leaderboard","chat","dms","feedback","support"];
+  const [tabOrder, setTabOrder] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("eco_tab_order")); return Array.isArray(s) && s.length === 8 ? s : null; } catch { return null; }
+  });
   const [waste, setWaste] = useState("");
   const [result, setResult] = useState(null);
   const [recyclerResult, setRecyclerResult] = useState(null);
@@ -301,8 +305,27 @@ export default function App() {
           setAdmins((p) => p.filter((a) => a !== parts[1]));
           await sysPost(`🚫 ${parts[1]}'s admin has been removed.`);
         }
+      } else if (cmd === "/movetab" && parts[1] && parts[2]) {
+        const tabId = parts[1].toLowerCase();
+        const pos = parseInt(parts[2]) - 1;
+        const validIds = ["home","scan","history","leaderboard","chat","dms","feedback","support"];
+        if (!validIds.includes(tabId)) { await sysPost(`❌ Unknown tab "${tabId}". Valid: ${validIds.join(", ")}`); }
+        else if (isNaN(pos) || pos < 0 || pos > 7) { await sysPost("❌ Position must be 1–8."); }
+        else {
+          const current = tabOrder ? [...tabOrder] : [...DEFAULT_TABS];
+          const from = current.indexOf(tabId);
+          current.splice(from, 1);
+          current.splice(pos, 0, tabId);
+          setTabOrder(current);
+          localStorage.setItem("eco_tab_order", JSON.stringify(current));
+          await sysPost(`🔀 Moved "${tabId}" to position ${pos + 1}. Order: ${current.join(", ")}`);
+        }
+      } else if (cmd === "/resettabs") {
+        setTabOrder(null);
+        localStorage.removeItem("eco_tab_order");
+        await sysPost("🔄 Tab order reset to default.");
       } else if (cmd === "/help") {
-        await sysPost(`Commands: /ban /unban /role [u] [r] /rank [u] [r] /kick /clear /announce /spectate [u] /setpoints [u] [n] /setscanned [u] [n] /dm [u] [msg] /makeadmin [u] /removeadmin [u]`);
+        await sysPost(`Commands: /ban /unban /role [u] [r] /rank [u] [r] /kick /clear /announce /spectate [u] /setpoints [u] [n] /setscanned [u] [n] /dm [u] [msg] /makeadmin [u] /removeadmin [u] /movetab [tab] [1-8] /resettabs`);
       } else {
         await sysPost(`❌ Unknown command: ${cmd}`);
       }
@@ -981,16 +1004,16 @@ export default function App() {
       {/* BOTTOM NAV */}
       <div style={{ position: "fixed", bottom: 0, left: 0, width: "100%", background: C.white, borderTop: "1px solid #e8e8e8", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)", overflowX: "auto" }}>
         <div style={{ display: "flex", padding: "8px 0 10px", minWidth: "max-content", width: "100%" }}>
-          {[
-            { id: "home",        icon: "🏠", label: "Home" },
-            { id: "scan",        icon: "♻️", label: "Scan" },
-            { id: "history",     icon: "📊", label: "History" },
-            { id: "leaderboard", icon: "🏆", label: "Ranks" },
-            { id: "chat",        icon: "💬", label: "Chat" },
-            { id: "dms",         icon: "📬", label: "DMs", badge: unreadDms > 0 ? unreadDms : null },
-            { id: "feedback",    icon: "⭐", label: "Feedback" },
-            { id: "support",     icon: "❓", label: "Help" },
-          ].map((t) => (
+          {(tabOrder || DEFAULT_TABS).map((id) => ({
+              home:        { id: "home",        icon: "🏠", label: "Home" },
+              scan:        { id: "scan",        icon: "♻️", label: "Scan" },
+              history:     { id: "history",     icon: "📊", label: "History" },
+              leaderboard: { id: "leaderboard", icon: "🏆", label: "Ranks" },
+              chat:        { id: "chat",        icon: "💬", label: "Chat" },
+              dms:         { id: "dms",         icon: "📬", label: "DMs", badge: unreadDms > 0 ? unreadDms : null },
+              feedback:    { id: "feedback",    icon: "⭐", label: "Feedback" },
+              support:     { id: "support",     icon: "❓", label: "Help" },
+            }[id])).map((t) => (
             <button key={t.id}
               onClick={() => { setTab(t.id); if (t.id === "dms") setDmRead(dms.length); }}
               style={{ flex: "0 0 12.5%", minWidth: 56, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "4px 0", position: "relative" }}>
