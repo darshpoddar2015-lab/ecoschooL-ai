@@ -83,7 +83,9 @@ export default function App() {
   const [preview, setPreview] = useState(null);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [tipIndex, setTipIndex] = useState(0);
+  const [listening, setListening] = useState(false);
   const fileRef = useRef();
+  const cameraRef = useRef();
 
   const [spectatorTarget, setSpectatorTarget] = useState(null);
 
@@ -141,6 +143,15 @@ export default function App() {
     if (!loggedIn || !username) return;
     fetch(`${API}/api/scores`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: username, points, scanned: history.length }) }).catch(() => {});
   }, [points, history.length, loggedIn]);
+  useEffect(() => {
+    if (!loggedIn) return;
+    if ("Notification" in window) {
+      if (Notification.permission === "granted") setNotifEnabled(true);
+      else if (Notification.permission === "default") {
+        Notification.requestPermission().then((p) => { if (p === "granted") { setNotifEnabled(true); new Notification("EcoSchool AI 🌱", { body: "Notifications enabled! ♻️" }); } });
+      }
+    }
+  }, [loggedIn]);
   useEffect(() => {
     if (!loggedIn) return;
     setNewsLoading(true);
@@ -407,6 +418,17 @@ export default function App() {
       setRecyclerResult(data); setWaste("");
     } catch { setRecyclerResult({ error: true }); }
     finally { setRecyclerLoading(false); }
+  };
+
+  const startVoice = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return alert("Voice input not supported on this browser.");
+    const r = new SR(); r.lang = "en-IN"; r.interimResults = false; r.maxAlternatives = 1;
+    r.onstart = () => setListening(true);
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    r.onresult = (e) => setWaste(e.results[0][0].transcript);
+    r.start();
   };
 
   const resizeImage = (file) => new Promise((resolve) => {
@@ -733,10 +755,16 @@ export default function App() {
             <h3 style={{ color: C.dark, marginTop: 0, marginBottom: 4 }}>♻️ Scan Item</h3>
             <p style={{ color: C.gray, fontSize: 13, marginTop: 0, marginBottom: 12 }}>Classify waste <strong>or</strong> find companies that recycle it</p>
 
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "#f3e5f5", border: "2px dashed #ce93d8", borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", color: "#6a1b9a", marginBottom: 12 }}>
-              🖼️ Upload Photo
-              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files[0] && analyzeImage(e.target.files[0])} />
-            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <label className="eco-btn" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "#e3f2fd", border: "2px solid #90caf9", borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", color: "#1565c0" }}>
+                📷 Camera
+                <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => e.target.files[0] && analyzeImage(e.target.files[0])} />
+              </label>
+              <label className="eco-btn" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "#f3e5f5", border: "2px solid #ce93d8", borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", color: "#6a1b9a" }}>
+                🖼️ Gallery
+                <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files[0] && analyzeImage(e.target.files[0])} />
+              </label>
+            </div>
             {preview && <div style={{ marginBottom: 12, borderRadius: 12, overflow: "hidden" }}><img src={preview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "cover" }} /></div>}
 
             <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "8px 0", color: C.gray, fontSize: 12 }}>
@@ -744,9 +772,15 @@ export default function App() {
             </div>
 
             <div style={{ background: C.white, borderRadius: 14, padding: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-              <input value={waste} onChange={(e) => setWaste(e.target.value)} onKeyDown={(e) => e.key === "Enter" && analyzeWaste()}
-                placeholder="e.g. tyre, phone, marigold, plastic bottle..."
-                style={{ width: "100%", padding: 12, fontSize: 14, borderRadius: 10, border: "1.5px solid #e0e0e0", outline: "none", boxSizing: "border-box", marginBottom: 10 }} />
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <input value={waste} onChange={(e) => setWaste(e.target.value)} onKeyDown={(e) => e.key === "Enter" && analyzeWaste()}
+                  placeholder="e.g. tyre, phone, marigold, plastic bottle..."
+                  style={{ flex: 1, padding: 12, fontSize: 14, borderRadius: 10, border: "1.5px solid #e0e0e0", outline: "none", boxSizing: "border-box" }} />
+                <button onClick={startVoice} title="Voice input"
+                  style={{ padding: "0 14px", background: listening ? "#e53935" : "#f3e5f5", border: "1.5px solid #ce93d8", borderRadius: 10, fontSize: 20, cursor: "pointer", transition: "background 0.2s", animation: listening ? "pulse 0.8s infinite" : "none" }}>
+                  🎤
+                </button>
+              </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={analyzeWaste} disabled={loading || recyclerLoading}
                   style={{ flex: 1, padding: 12, background: loading && scanMode === "waste" ? "#bbb" : `linear-gradient(135deg, ${C.darkGreen}, ${C.green})`, color: "white", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
