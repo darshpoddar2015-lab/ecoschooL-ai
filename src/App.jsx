@@ -320,12 +320,18 @@ export default function App() {
           localStorage.setItem("eco_tab_order", JSON.stringify(current));
           await sysPost(`🔀 Moved "${tabId}" to position ${pos + 1}. Order: ${current.join(", ")}`);
         }
+      } else if (cmd === "/resetscores") {
+        await fetch(`${API}/api/scores?keep=${encodeURIComponent(username)}`, { method: "DELETE" });
+        const fresh = {};
+        if (serverScores[username]) fresh[username] = serverScores[username];
+        setServerScores(fresh);
+        await sysPost(`🗑️ All scores cleared (kept ${username}'s score).`);
       } else if (cmd === "/resettabs") {
         setTabOrder(null);
         localStorage.removeItem("eco_tab_order");
         await sysPost("🔄 Tab order reset to default.");
       } else if (cmd === "/help") {
-        await sysPost(`Commands: /ban /unban /role [u] [r] /rank [u] [r] /kick /clear /announce /spectate [u] /setpoints [u] [n] /setscanned [u] [n] /dm [u] [msg] /makeadmin [u] /removeadmin [u] /movetab [tab] [1-8] /resettabs`);
+        await sysPost(`Commands: /ban /unban /role [u] [r] /rank [u] [r] /kick /clear /announce /spectate [u] /setpoints [u] [n] /setscanned [u] [n] /dm [u] [msg] /makeadmin [u] /removeadmin [u] /movetab [tab] [1-8] /resettabs /resetscores`);
       } else {
         await sysPost(`❌ Unknown command: ${cmd}`);
       }

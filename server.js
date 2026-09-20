@@ -103,6 +103,14 @@ app.post("/api/scores", (req, res) => {
   writeScores(scores);
   res.json({ ok: true });
 });
+app.delete("/api/scores", (req, res) => {
+  const { keep } = req.query;
+  const scores = readScores();
+  const fresh = {};
+  if (keep && scores[keep]) fresh[keep] = scores[keep];
+  writeScores(fresh);
+  res.json({ ok: true });
+});
 
 // Chat (server-side, shared across all devices)
 const CHAT_FILE = "chat.json";
